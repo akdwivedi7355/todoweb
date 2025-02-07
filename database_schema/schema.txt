@@ -1,0 +1,267 @@
+
+CREATE DATABASE scmtrial;
+GO
+
+USE [scmtrial]
+GO
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE Users (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    userRole VARCHAR(50) NOT NULL CHECK (userRole IN ('admin', 'user')),
+    createdAt DATETIME DEFAULT GETDATE()
+);
+
+CREATE TABLE Todos (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description VARCHAR(MAX),
+    completed BIT DEFAULT 0,
+    userId INT NOT NULL,
+    createdAt DATETIME DEFAULT GETDATE(),
+    updatedAt DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (userId) REFERENCES Users(id)
+);
+
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [dbo].[sp_ManageUsers]
+    @TypeControl INT,
+    @UserID INT = NULL,
+    @Name VARCHAR(255) = NULL,
+    @Email VARCHAR(255) = NULL,
+    @Password VARCHAR(255) = NULL,
+    @UserRole VARCHAR(50) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    CREATE TABLE #Users (
+        UserID INT,
+        Name VARCHAR(255),
+        Email VARCHAR(255),
+        Password VARCHAR(255),
+        UserRole VARCHAR(50),
+        CreatedAt DATETIME
+    );
+
+    DECLARE @IsSuccess BIT = 0;
+    DECLARE @Message NVARCHAR(500) = 'Operation Failed.';
+
+    BEGIN
+        -- Insert Operation
+        IF @TypeControl = 1
+        BEGIN
+            INSERT INTO Users (name, email, password, userRole, createdAt)
+            VALUES (@Name, @Email, @Password, @UserRole, GETDATE());
+            SET @IsSuccess = 1;
+            SET @Message = 'User added successfully.';
+        END
+
+        -- Update Operation
+        ELSE IF @TypeControl = 2
+        BEGIN
+            UPDATE Users
+            SET name = ISNULL(@Name, name),
+                email = ISNULL(@Email, email),
+                password = ISNULL(@Password, password),
+                userRole = ISNULL(@UserRole, userRole)
+            WHERE id = @UserID;
+            SET @IsSuccess = 1;
+            SET @Message = 'User updated successfully.';
+        END
+
+        -- Retrieve by ID
+        ELSE IF @TypeControl = 3
+        BEGIN
+            INSERT INTO #Users (UserID, Name, Email, Password, UserRole, CreatedAt)
+            SELECT id, name, email, password, userRole, createdAt
+            FROM Users
+            WHERE id = @UserID;
+            SET @IsSuccess = 1;
+            SET @Message = 'User retrieved successfully.';
+        END
+
+        -- Delete Operation
+        ELSE IF @TypeControl = 4
+        BEGIN
+            DELETE FROM Users WHERE id = @UserID;
+            SET @IsSuccess = 1;
+            SET @Message = 'User deleted successfully.';
+        END
+
+        -- Retrieve All Users
+        ELSE IF @TypeControl = 5
+        BEGIN
+            INSERT INTO #Users (UserID, Name, Email, Password, UserRole, CreatedAt)
+            SELECT id, name, email, password, userRole, createdAt
+            FROM Users;
+            SET @IsSuccess = 1;
+            SET @Message = 'All users retrieved successfully.';
+        END
+    END
+
+    SELECT @IsSuccess AS IsSuccess, @Message AS Message;
+
+    IF (@TypeControl IN (3, 5))
+        SELECT UserID, Name, Email, Password, UserRole, CreatedAt FROM #Users;
+END;
+
+
+
+
+
+
+CREATE PROCEDURE [dbo].[sp_ManageTodos]
+    @TypeControl INT,  -- Control Type: 1 = Insert, 2 = Update, 3 = Retrieve by ID, 4 = Delete, 5 = Retrieve All
+    @TodoID INT = NULL,  -- Todo ID (if updating or deleting a specific todo)
+    @Title VARCHAR(255) = NULL,  -- Title of the Todo
+    @Description VARCHAR(MAX) = NULL,  -- Description of the Todo
+    @Completed BIT = NULL,  -- Completed status of the Todo
+    @UserID INT = NULL  -- User ID to associate the Todo with
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    CREATE TABLE #Todos (
+        TodoID INT,
+        Title VARCHAR(255),
+        Description VARCHAR(MAX),
+        Completed BIT,
+        UserID INT,
+        CreatedAt DATETIME,
+        UpdatedAt DATETIME
+    );
+
+    DECLARE @IsSuccess BIT = 0;
+    DECLARE @Message NVARCHAR(500) = 'Operation Failed.';
+
+    BEGIN
+        -- Insert Operation (TypeControl = 1)
+        IF @TypeControl = 1
+        BEGIN
+            INSERT INTO Todos (title, description, completed, userId, createdAt, updatedAt)
+            VALUES (@Title, @Description, ISNULL(@Completed, 0), @UserID, GETDATE(), GETDATE());
+            SET @IsSuccess = 1;
+            SET @Message = 'Todo added successfully.';
+        END
+
+        -- Update Operation (TypeControl = 2)
+        ELSE IF @TypeControl = 2
+        BEGIN
+            UPDATE Todos
+            SET title = ISNULL(@Title, title),
+                description = ISNULL(@Description, description),
+                completed = ISNULL(@Completed, completed),
+                updatedAt = GETDATE()
+            WHERE id = @TodoID;
+            SET @IsSuccess = 1;
+            SET @Message = 'Todo updated successfully.';
+        END
+
+        -- Retrieve by Todo ID (TypeControl = 3)
+        ELSE IF @TypeControl = 3
+        BEGIN
+            INSERT INTO #Todos (TodoID, Title, Description, Completed, UserID, CreatedAt, UpdatedAt)
+            SELECT id, title, description, completed, userId, createdAt, updatedAt
+            FROM Todos
+            WHERE id = @TodoID;
+            SET @IsSuccess = 1;
+            SET @Message = 'Todo retrieved successfully.';
+        END
+
+        -- Delete Operation (TypeControl = 4)
+        ELSE IF @TypeControl = 4
+        BEGIN
+            DELETE FROM Todos WHERE id = @TodoID;
+            SET @IsSuccess = 1;
+            SET @Message = 'Todo deleted successfully.';
+        END
+
+        -- Retrieve All Todos (TypeControl = 5)
+        ELSE IF @TypeControl = 5
+        BEGIN
+            INSERT INTO #Todos (TodoID, Title, Description, Completed, UserID, CreatedAt, UpdatedAt)
+            SELECT id, title, description, completed, userId, createdAt, updatedAt
+            FROM Todos;
+            SET @IsSuccess = 1;
+            SET @Message = 'All todos retrieved successfully.';
+        END
+    END
+
+    -- Return the result status
+    SELECT @IsSuccess AS IsSuccess, @Message AS Message;
+
+    -- Return the result set (for retrieve operations)
+    IF (@TypeControl IN (3, 5))
+        SELECT TodoID, Title, Description, Completed, UserID, CreatedAt, UpdatedAt FROM #Todos;
+END;
+
+
+
+
+USE [scmtrial]
+GO
+/****** Object:  StoredProcedure [dbo].[sp_ManageLogin]    Script Date: 07-02-2025 12:11:24 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+-- Create the stored procedure for login functionality
+ALTER PROCEDURE [dbo].[sp_ManageLogin]
+    @Email VARCHAR(255),
+    @Password VARCHAR(255)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @IsSuccess BIT = 0;
+    DECLARE @Message NVARCHAR(500) = 'Invalid credentials.';
+    DECLARE @UserID INT;
+    DECLARE @Name VARCHAR(255);
+    DECLARE @UserRole VARCHAR(50);
+    DECLARE @CreatedAt DATETIME;
+
+    -- Retrieve user data by email and password
+    SELECT 
+        @UserID = id,
+        @Name = name,
+        @UserRole = userRole,
+        @CreatedAt = createdAt
+    FROM Users
+    WHERE email = @Email AND password = @Password;
+
+    -- Check if user was found
+    IF @UserID IS NOT NULL
+    BEGIN
+        SET @IsSuccess = 1;
+        SET @Message = 'Login successful.';
+        
+        -- Return user details
+        SELECT 
+            @UserID AS UserID, 
+            @Name AS Name, 
+            @Email AS Email, 
+            @UserRole AS UserRole, 
+            @CreatedAt AS CreatedAt;
+    END
+    ELSE
+    BEGIN
+        SET @Message = 'User not found or incorrect password.';
+    END
+    
+    -- Return success status and message
+    SELECT @IsSuccess AS IsSuccess, @Message AS Message;
+END;

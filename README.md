@@ -106,7 +106,7 @@ npm start
 
 ## Database Setup
 
-The MSSQL database is used for storing user credentials and tasks. Ensure the stored procedure `sp_ManageLogin` is correctly implemented.
+The MSSQL database is used for storing all procedure and tasks. Ensure the All stored procedure is correctly implemented.
 
 Example stored procedure for login:
 
@@ -119,6 +119,7 @@ BEGIN
   SELECT UserID, Username FROM Users WHERE Email = @Email AND Password = @Password;
 END
 ```
+# FULL DATABASE SCHEME IS IN THE database_schema  folder 
 
 ## Frontend Setup
 
